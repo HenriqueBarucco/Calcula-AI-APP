@@ -4,7 +4,7 @@ import type { ExpoConfig } from "expo/config";
 dotenv.config();
 
 const config: ExpoConfig = {
-  name: "Calcula-AI-APP",
+  name: "Calcula AI",
   slug: "Calcula-AI-APP",
   version: "1.0.0",
   orientation: "portrait",

@@ -1,5 +1,6 @@
 import React from "react";
-import { ActivityIndicator, Text, TouchableOpacity, ViewStyle } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, ViewStyle } from "react-native";
+import { colors, radii, spacing, typography } from "../styles/theme";
 
 type Props = {
   title: string;
@@ -19,22 +20,31 @@ export function Button({ title, onPress, disabled, loading, style }: Props) {
       disabled={isDisabled}
       onPress={onPress}
       style={[
-        {
-          height: 48,
-          borderRadius: 8,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: isDisabled ? "#9bbcff" : "#007AFF",
-          paddingHorizontal: 16,
-        },
+        styles.container,
+        { backgroundColor: isDisabled ? colors.primaryMuted : colors.primary },
         style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color="#fff" />
+        <ActivityIndicator color={colors.textInverse} />
       ) : (
-        <Text style={{ color: "#fff", fontWeight: "600" }}>{title}</Text>
+        <Text style={styles.label}>{title}</Text>
       )}
     </TouchableOpacity>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    height: 48,
+    borderRadius: radii.md,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+  },
+  label: {
+    color: colors.textInverse,
+    fontWeight: "600",
+    fontSize: typography.body,
+  },
+});

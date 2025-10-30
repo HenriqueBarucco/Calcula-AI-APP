@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing, ViewStyle } from "react-native";
+import { colors, radii } from "../styles/theme";
 
 type Props = { height?: number; width?: number | `${number}%` | "auto"; style?: ViewStyle };
 
@@ -23,8 +24,8 @@ export function Skeleton({ height = 14, width = "100%", style }: Props) {
           opacity,
           height,
           width,
-          borderRadius: 6,
-          backgroundColor: "#e0e0e0",
+          borderRadius: radii.sm,
+          backgroundColor: colors.skeleton,
         },
         style,
       ]}

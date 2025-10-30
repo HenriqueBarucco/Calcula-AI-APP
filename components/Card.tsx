@@ -1,18 +1,22 @@
 import React from "react";
-import { View, ViewProps } from "react-native";
+import { StyleSheet, View, ViewProps } from "react-native";
+import { colors, radii, spacing } from "../styles/theme";
 
 export function Card({ style, ...rest }: ViewProps) {
   return (
     <View
-      style={[
-        {
-          padding: 12,
-          borderRadius: 8,
-          backgroundColor: "#f2f2f2",
-        },
-        style,
-      ]}
+      style={[styles.container, style]}
       {...rest}
     />
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+});

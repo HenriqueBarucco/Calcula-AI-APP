@@ -1,12 +1,12 @@
 import { useFonts } from "expo-font";
 import { SplashScreen, Stack } from "expo-router";
 import { useEffect } from "react";
-import { Text } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SessionProvider } from "../context/SessionContext";
+import { colors, typography } from "../styles/theme";
 
-// Keep splash screen visible while we load fonts
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -21,24 +21,15 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+  <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <SessionProvider>
           <Stack
             screenOptions={{
-              headerTitle: () => (
-                <Text
-                  style={{
-                    fontFamily: "SpaceMono",
-                    fontSize: 20,
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  Calcula AI
-                </Text>
-              ),
+              headerTitle: () => <Text style={styles.headerTitle}>Calcula AI</Text>,
               headerTitleAlign: "center",
               headerShadowVisible: false,
+              headerTintColor: colors.text,
             }}
           />
         </SessionProvider>
@@ -46,3 +37,15 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontFamily: "SpaceMono",
+    fontSize: typography.subtitle,
+    letterSpacing: 0.5,
+    color: colors.text,
+  },
+});

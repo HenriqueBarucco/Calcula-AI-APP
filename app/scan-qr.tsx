@@ -1,9 +1,10 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Platform, Text, View } from "react-native";
+import { Alert, Platform, StyleSheet, Text, View } from "react-native";
 import { Button } from "../components/Button";
 import { useSession } from "../context/SessionContext";
+import { colors, spacing, typography } from "../styles/theme";
 
 export default function ScanQR() {
   const router = useRouter();
@@ -13,7 +14,6 @@ export default function ScanQR() {
   const handledRef = useRef(false);
 
   useEffect(() => {
-    // Ask permission on mount if not granted
     (async () => {
       if (!permission?.granted) {
         await requestPermission();
@@ -22,27 +22,27 @@ export default function ScanQR() {
   }, [permission?.granted, requestPermission]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: "black" }}>
+    <View style={styles.container}>
       <Stack.Screen
         options={{
           presentation: Platform.select({ ios: "modal", default: "card" }),
           headerTitle: "Ler QR",
           headerRight: () => (
-            <Button title="Fechar" onPress={() => router.back()} style={{ height: 32 }} />
+            <Button title="Fechar" onPress={() => router.back()} style={styles.closeButton} />
           ),
         }}
       />
 
       {!permission?.granted ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
-          <Text style={{ color: "white", marginBottom: 12, textAlign: "center" }}>
+        <View style={styles.permissionContainer}>
+          <Text style={styles.permissionText}>
             Precisamos da permissão da câmera para ler o QR code.
           </Text>
           <Button title="Permitir câmera" onPress={requestPermission} />
         </View>
       ) : (
         <CameraView
-          style={{ flex: 1 }}
+          style={styles.camera}
           facing="back"
           barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
           onBarcodeScanned={(result: any) => {
@@ -60,3 +60,30 @@ export default function ScanQR() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.cameraBackground,
+  },
+  closeButton: {
+    height: 36,
+    minWidth: undefined,
+  },
+  permissionContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  permissionText: {
+    color: colors.textInverse,
+    marginBottom: spacing.xs,
+    textAlign: "center",
+    fontSize: typography.body,
+  },
+  camera: {
+    flex: 1,
+  },
+});

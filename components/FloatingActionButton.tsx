@@ -1,38 +1,46 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { ActivityIndicator, TouchableOpacity } from "react-native";
+import type { GestureResponderHandlers } from "react-native";
+import { ActivityIndicator, StyleSheet, TouchableOpacity } from "react-native";
+import { colors, radii, shadows, spacing } from "../styles/theme";
 
 type Props = {
   onPress?: () => void | Promise<void>;
+  onLongPress?: () => void;
   disabled?: boolean;
   loading?: boolean;
+  panHandlers?: GestureResponderHandlers;
 };
 
-export function FloatingActionButton({ onPress, disabled, loading }: Props) {
+export function FloatingActionButton({ onPress, onLongPress, disabled, loading, panHandlers }: Props) {
   return (
     <TouchableOpacity
       accessibilityLabel="Ação principal"
       activeOpacity={0.85}
       onPress={onPress}
+      onLongPress={onLongPress}
       disabled={disabled || loading}
-      style={{
-        position: "absolute",
-        right: 24,
-        bottom: 24,
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: disabled || loading ? "#9bbcff" : "#007AFF",
-        alignItems: "center",
-        justifyContent: "center",
-        shadowColor: "#000",
-        shadowOpacity: 0.2,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 3 },
-        elevation: 4,
-      }}
+      {...(panHandlers ?? {})}
+      style={[
+        styles.container,
+        { backgroundColor: disabled || loading ? colors.primaryMuted : colors.primary },
+      ]}
     >
-      {loading ? <ActivityIndicator color="#fff" /> : <Ionicons name="camera" size={24} color="#fff" />}
+      {loading ? <ActivityIndicator color={colors.textInverse} /> : <Ionicons name="camera" size={24} color={colors.textInverse} />}
     </TouchableOpacity>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    position: "absolute",
+    right: spacing.lg,
+    bottom: spacing.lg,
+    width: 56,
+    height: 56,
+    borderRadius: radii.full,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadows.medium,
+  },
+});

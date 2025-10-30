@@ -80,7 +80,35 @@ export async function uploadPriceImage(params: {
   }
   const parsed = await parseJsonSafe<SessionDetails>(res);
   if (parsed) return parsed;
-  // Backend might return 204 or empty body after upload; refresh the session
+  return await getSession(sessionId);
+}
+
+export async function createPrice(params: {
+  sessionId: string;
+  quantity: number;
+  name: string;
+  value: number;
+}): Promise<SessionDetails> {
+  const { sessionId, quantity, name, value } = params;
+  const formData = new FormData();
+  formData.append("quantity", String(quantity));
+  formData.append("name", name);
+  formData.append("value", String(value));
+
+  const res = await fetch(`${API_URL}/sessions/prices`, {
+    method: "POST",
+    headers: {
+      session: sessionId,
+    } as any,
+    body: formData as any,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Falha ao criar preço (${res.status}): ${text}`);
+  }
+  const parsed = await parseJsonSafe<SessionDetails>(res);
+  if (parsed) return parsed;
   return await getSession(sessionId);
 }
 
@@ -97,7 +125,6 @@ export async function deletePrice(params: { sessionId: string; priceId: string }
     const text = await res.text().catch(() => "");
     throw new Error(`Falha ao deletar preço (${res.status}): ${text}`);
   }
-  // API may return 204 No Content; nothing else to do here
 }
 
 async function parseJsonSafe<T>(res: Response): Promise<T | null> {
