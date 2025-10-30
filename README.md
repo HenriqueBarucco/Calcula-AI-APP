@@ -1,50 +1,47 @@
-# Welcome to your Expo app 👋
+## Calcula AI App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo Router app for scanning price labels and calculating totals.
 
-## Get started
+### Setup
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+1) Install deps
 
 ```bash
-npm run reset-project
+pnpm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2) Configure environment
 
-## Learn more
+```bash
+cp .env.example .env
+# edit API_URL if needed
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+3) Run
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+pnpm start
+```
 
-## Join the community
+Optional:
 
-Join our community of developers creating universal apps.
+```bash
+pnpm run android
+pnpm run ios
+pnpm run web
+pnpm run typecheck
+pnpm run lint
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### Env
+
+The file `app.config.ts` reads `.env` and exposes `extra.apiUrl`, consumed by `lib/config.ts` as `API_URL`.
+
+### Structure
+
+- `components/`: small reusable UI parts (cards, buttons, list items)
+- `context/SessionContext.tsx`: session creation and state
+- `lib/api.ts`: API calls
+- `lib/config.ts`: runtime config (API_URL)
+- `utils/currency.ts`: formatting helpers
+
