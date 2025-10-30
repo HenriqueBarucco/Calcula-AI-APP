@@ -8,14 +8,22 @@ type PriceListProps = {
   prices: Price[];
   disabled: boolean;
   onDelete: (price: Price) => Promise<void> | void;
+  onSelect?: (price: Price) => void;
+  loadingPriceId?: string | null;
 };
 
-function PriceListComponent({ prices, disabled, onDelete }: PriceListProps) {
+function PriceListComponent({ prices, disabled, onDelete, onSelect, loadingPriceId }: PriceListProps) {
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<Price>) => (
-      <PriceItem item={item} disabled={disabled} onDelete={() => onDelete(item)} />
+      <PriceItem
+        item={item}
+        disabled={disabled}
+        onDelete={() => onDelete(item)}
+        onPress={onSelect}
+        loading={loadingPriceId === item.id}
+      />
     ),
-    [disabled, onDelete]
+    [disabled, onDelete, onSelect, loadingPriceId]
   );
 
   const keyExtractor = useCallback((item: Price) => item.id, []);

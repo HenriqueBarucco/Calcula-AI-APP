@@ -6,11 +6,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { CameraActions } from "../components/session/CameraActions";
 import { ManualPriceModal } from "../components/session/ManualPriceModal";
 import { PriceList } from "../components/session/PriceList";
+import { PricePhotoModal } from "../components/session/PricePhotoModal";
 import { SessionSummary } from "../components/session/SessionSummary";
 import { useSession } from "../context/SessionContext";
 import { useSessionPolling } from "../hooks/useSessionPolling";
 import type { Price } from "../lib/api";
-import { createPrice, deletePrice } from "../lib/api";
+import { createPrice, deletePrice, getPricePhoto } from "../lib/api";
 import { colors, radii, spacing, typography } from "../styles/theme";
 import { manualInitialState, type ManualFormValues } from "../types/manualPrice";
 import { parseCurrency, parseQuantity } from "../utils/parsing";
@@ -24,6 +25,11 @@ export default function Index() {
   const [manualVisible, setManualVisible] = useState(false);
   const [manualLoading, setManualLoading] = useState(false);
   const [manualForm, setManualForm] = useState<ManualFormValues>(manualInitialState);
+  const [selectedPrice, setSelectedPrice] = useState<Price | null>(null);
+  const [photoModalVisible, setPhotoModalVisible] = useState(false);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
     void ensureSession();
@@ -133,6 +139,73 @@ export default function Index() {
   const listDisabled = useMemo(() => deletingId !== null, [deletingId]);
 
   const previousUploadingRef = useRef(uploading);
+  const photoRequestIdRef = useRef(0);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    setToastMessage(message);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage(null);
+      toastTimeoutRef.current = null;
+    }, 2500);
+  }, []);
+
+  const closePhotoModal = useCallback(() => {
+    photoRequestIdRef.current += 1;
+    setPhotoModalVisible(false);
+    setPhotoLoading(false);
+    setPhotoUri(null);
+    setSelectedPrice(null);
+  }, []);
+
+  const handleOpenPricePhoto = useCallback(async (price: Price) => {
+    if (!sessionId) return;
+
+    const requestId = photoRequestIdRef.current + 1;
+    photoRequestIdRef.current = requestId;
+    setSelectedPrice(price);
+    setPhotoUri(null);
+    setPhotoModalVisible(false);
+    setPhotoLoading(true);
+
+    try {
+      const photo = await getPricePhoto({ sessionId, priceId: price.id });
+      if (photoRequestIdRef.current !== requestId) return;
+
+      if (!photo) {
+        setSelectedPrice(null);
+        setPhotoModalVisible(false);
+        showToast("Não há foto disponível para este item.");
+        return;
+      }
+
+      setPhotoUri(photo.uri);
+      setPhotoModalVisible(true);
+    } catch (error: any) {
+      if (photoRequestIdRef.current !== requestId) return;
+      setSelectedPrice(null);
+      setPhotoModalVisible(false);
+      Alert.alert("Erro ao carregar foto", error?.message ?? "Tente novamente.");
+    } finally {
+      if (photoRequestIdRef.current === requestId) {
+        setPhotoLoading(false);
+      }
+    }
+  }, [sessionId, showToast]);
+
+  const toastItems = useMemo(() => {
+    const items: { key: string; text: string }[] = [];
+    if (uploading) {
+      items.push({ key: "uploading", text: "Enviando imagem..." });
+    }
+    if (toastMessage) {
+      items.push({ key: "message", text: toastMessage });
+    }
+    return items;
+  }, [uploading, toastMessage]);
 
   useEffect(() => {
     if (previousUploadingRef.current && !uploading) {
@@ -140,6 +213,14 @@ export default function Index() {
     }
     previousUploadingRef.current = uploading;
   }, [uploading, refresh]);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -157,7 +238,13 @@ export default function Index() {
       ) : (
         <View style={styles.content}>
           <SessionSummary total={total} />
-          <PriceList prices={prices} disabled={listDisabled} onDelete={handleDeletePrice} />
+          <PriceList
+            prices={prices}
+            disabled={listDisabled}
+            onDelete={handleDeletePrice}
+            onSelect={handleOpenPricePhoto}
+            loadingPriceId={photoLoading && selectedPrice ? selectedPrice.id : null}
+          />
         </View>
       )}
 
@@ -178,9 +265,21 @@ export default function Index() {
         onSubmit={handleManualSubmit}
       />
 
-      {uploading ? (
-        <View pointerEvents="none" style={styles.toast}>
-          <Text style={styles.toastText}>Enviando imagem...</Text>
+      <PricePhotoModal
+        visible={photoModalVisible}
+        loading={photoLoading}
+        uri={photoUri}
+        price={selectedPrice}
+        onClose={closePhotoModal}
+      />
+
+      {toastItems.length ? (
+        <View pointerEvents="none" style={styles.toastContainer}>
+          {toastItems.map((item) => (
+            <View key={item.key} style={styles.toast}>
+              <Text style={styles.toastText}>{item.text}</Text>
+            </View>
+          ))}
         </View>
       ) : null}
     </SafeAreaView>
@@ -213,10 +312,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
-  toast: {
+  toastContainer: {
     position: "absolute",
-    alignSelf: "center",
     bottom: spacing.xl,
+    alignSelf: "center",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  toast: {
     borderRadius: radii.md,
     backgroundColor: "rgba(15, 23, 42, 0.85)",
     paddingHorizontal: spacing.sm,

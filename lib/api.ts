@@ -127,6 +127,37 @@ export async function deletePrice(params: { sessionId: string; priceId: string }
   }
 }
 
+export async function getPricePhoto(params: { sessionId: string; priceId: string }): Promise<{ uri: string; contentType: string } | null> {
+  const { sessionId, priceId } = params;
+  const res = await fetch(`${API_URL}/sessions/prices/${priceId}/photo`, {
+    method: "GET",
+    headers: {
+      session: sessionId,
+    } as any,
+  });
+
+  if (res.status === 404) {
+    return null;
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Falha ao buscar foto (${res.status}): ${text}`);
+  }
+
+  const contentType = res.headers.get("Content-Type") ?? "image/jpeg";
+  const arrayBuffer = await res.arrayBuffer();
+  if (!arrayBuffer.byteLength) {
+    return null;
+  }
+
+  const base64 = arrayBufferToBase64(arrayBuffer);
+  return {
+    uri: `data:${contentType};base64,${base64}`,
+    contentType,
+  };
+}
+
 async function parseJsonSafe<T>(res: Response): Promise<T | null> {
   if (res.status === 204 || res.status === 205) return null;
   try {
@@ -136,4 +167,28 @@ async function parseJsonSafe<T>(res: Response): Promise<T | null> {
   } catch {
     return null;
   }
+}
+
+const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.length;
+  let base64 = "";
+
+  for (let offset = 0; offset < len; offset += 3) {
+    const chunk = (bytes[offset] << 16) | ((bytes[offset + 1] ?? 0) << 8) | (bytes[offset + 2] ?? 0);
+    const a = (chunk >> 18) & 63;
+    const b = (chunk >> 12) & 63;
+    const c = (chunk >> 6) & 63;
+    const d = chunk & 63;
+
+    base64 +=
+      BASE64_ALPHABET[a] +
+      BASE64_ALPHABET[b] +
+      (offset + 1 < len ? BASE64_ALPHABET[c] : "=") +
+      (offset + 2 < len ? BASE64_ALPHABET[d] : "=");
+  }
+
+  return base64;
 }
