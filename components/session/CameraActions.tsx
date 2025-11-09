@@ -1,13 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, PanResponder, Pressable, StyleSheet, View } from "react-native";
+import { useCallback, useMemo } from "react";
+import { Platform, Pressable, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radii, shadows, spacing } from "../../styles/theme";
 import { FloatingActionButton } from "../FloatingActionButton";
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-const ACTION_OFFSET = 88;
-const DRAG_THRESHOLD = 30;
+const BUTTON_SIZE = 56;
 
 type CameraActionsProps = {
   disabled: boolean;
@@ -15,200 +13,76 @@ type CameraActionsProps = {
   manualVisible: boolean;
   onCapture: () => void | Promise<void>;
   onOpenManual: () => void;
+  positioning?: {
+    cameraBottom: number;
+    manualBottom: number;
+    right: number;
+  };
 };
 
-export function CameraActions({ disabled, loading, manualVisible, onCapture, onOpenManual }: CameraActionsProps) {
-  const [visible, setVisible] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const animation = useRef(new Animated.Value(0)).current;
+export function CameraActions({ disabled, loading, manualVisible, onCapture, onOpenManual, positioning }: CameraActionsProps) {
+  const insets = useSafeAreaInsets();
 
-  const closeSheet = useCallback(() => {
-    setVisible(false);
-  }, []);
+  const { rightOffset, cameraBottom, manualBottom } = useMemo(() => {
+    if (positioning) return {
+      rightOffset: positioning.right,
+      cameraBottom: positioning.cameraBottom,
+      manualBottom: positioning.manualBottom,
+    };
 
-  const playImpact = useCallback(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  }, []);
+    const right = Math.max(insets.right, spacing.lg);
+    const baseBottom = spacing.lg + insets.bottom;
+    const needsExtraSpace = Platform.OS === "android" && insets.bottom < spacing.sm;
+    const camera = baseBottom + (needsExtraSpace ? spacing.lg : 0);
+    const manual = camera + BUTTON_SIZE + spacing.sm;
+    return { rightOffset: right, cameraBottom: camera, manualBottom: manual };
+  }, [insets, positioning]);
 
-  const handleToggle = useCallback(() => {
-    if (disabled || manualVisible) return;
-    playImpact();
-    setVisible((prev) => !prev);
-  }, [disabled, manualVisible, playImpact]);
-
-  const handleDragOpen = useCallback(() => {
-    if (disabled || manualVisible || visible) return;
-    playImpact();
-    setVisible(true);
-  }, [disabled, manualVisible, visible, playImpact]);
-
-  const handleCapture = useCallback(async () => {
-    closeSheet();
-    await onCapture();
-  }, [closeSheet, onCapture]);
+  const manualDisabled = disabled || manualVisible || loading;
 
   const handleOpenManual = useCallback(() => {
-    closeSheet();
+    if (manualDisabled) return;
     onOpenManual();
-  }, [closeSheet, onOpenManual]);
-
-  useEffect(() => {
-    if (!manualVisible) return;
-    closeSheet();
-  }, [manualVisible, closeSheet]);
-
-  useEffect(() => {
-    if (!disabled) return;
-    setMounted(false);
-    setVisible(false);
-    animation.stopAnimation();
-    animation.setValue(0);
-  }, [disabled, animation]);
-
-  useEffect(() => {
-    if (visible) {
-      if (!mounted) {
-        animation.stopAnimation();
-        animation.setValue(0);
-        setMounted(true);
-        return;
-      }
-      animation.stopAnimation();
-      Animated.spring(animation, {
-        toValue: 1,
-        damping: 12,
-        stiffness: 140,
-        mass: 0.6,
-        useNativeDriver: true,
-      }).start();
-    } else if (mounted) {
-      animation.stopAnimation();
-      Animated.timing(animation, {
-        toValue: 0,
-        duration: 160,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) {
-          animation.setValue(0);
-          setMounted(false);
-        }
-      });
-    } else {
-      animation.stopAnimation();
-      animation.setValue(0);
-    }
-
-    return () => {
-      animation.stopAnimation();
-    };
-  }, [visible, mounted, animation]);
-
-  const { overlayOpacity, buttonTranslateY, buttonScale } = useMemo(() => {
-    const overlay = animation.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
-    const translate = animation.interpolate({ inputRange: [0, 1], outputRange: [0, -ACTION_OFFSET] });
-    const scale = animation.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] });
-    return {
-      overlayOpacity: overlay,
-      buttonTranslateY: translate,
-      buttonScale: scale,
-    };
-  }, [animation]);
-
-  const dragActivatedRef = useRef(false);
-
-  const panResponder = useMemo(() => {
-    return PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gesture) => {
-        if (disabled || loading || manualVisible) return false;
-        const verticalMove = Math.abs(gesture.dy);
-        const horizontalMove = Math.abs(gesture.dx);
-        return gesture.dy < 0 && verticalMove > 10 && verticalMove > horizontalMove;
-      },
-      onPanResponderGrant: () => {
-        dragActivatedRef.current = false;
-      },
-      onPanResponderMove: (_, gesture) => {
-        if (gesture.dy < -DRAG_THRESHOLD && !dragActivatedRef.current) {
-          dragActivatedRef.current = true;
-          handleDragOpen();
-        }
-      },
-      onPanResponderRelease: () => {
-        dragActivatedRef.current = false;
-      },
-      onPanResponderTerminate: () => {
-        dragActivatedRef.current = false;
-      },
-    });
-  }, [disabled, loading, manualVisible, handleDragOpen]);
+  }, [manualDisabled, onOpenManual]);
 
   return (
     <>
-      {mounted ? (
-        <View style={styles.overlay} pointerEvents="box-none">
-          <AnimatedPressable
-            style={styles.scrim}
-            onPress={closeSheet}
-            accessible={false}
-            disabled={!visible}
-          />
-          <View style={styles.container} pointerEvents="box-none">
-            <AnimatedPressable
-              style={[
-                styles.secondaryButton,
-                {
-                  transform: [
-                    { translateY: buttonTranslateY },
-                    { scale: buttonScale },
-                  ],
-                  opacity: overlayOpacity,
-                },
-              ]}
-              onPress={handleOpenManual}
-              accessibilityRole="button"
-              accessibilityLabel="Adicionar preço manual"
-              disabled={!visible}
-            >
-              <Ionicons name="add" size={24} color={colors.textInverse} />
-            </AnimatedPressable>
-          </View>
-        </View>
-      ) : null}
+      <Pressable
+        style={[
+          styles.manualButton,
+          {
+            right: rightOffset,
+            bottom: manualBottom,
+            opacity: manualDisabled ? 0.6 : 1,
+          },
+        ]}
+        onPress={handleOpenManual}
+        disabled={manualDisabled}
+        accessibilityRole="button"
+        accessibilityLabel="Adicionar preço manual"
+      >
+        <Ionicons name="add" size={24} color={colors.textInverse} />
+      </Pressable>
       <FloatingActionButton
-        onPress={handleCapture}
-        onLongPress={handleToggle}
+        onPress={onCapture}
         disabled={disabled}
         loading={loading}
-        panHandlers={panResponder.panHandlers}
+        bottom={cameraBottom}
+        right={rightOffset}
       />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 10,
-  },
-  scrim: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "transparent",
-  },
-  container: {
+  manualButton: {
     position: "absolute",
-    right: spacing.lg,
-    bottom: spacing.lg,
-    width: 56,
-    alignItems: "center",
-  },
-  secondaryButton: {
-    width: 48,
-    height: 48,
+    width: BUTTON_SIZE,
+    height: BUTTON_SIZE,
     borderRadius: radii.full,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    ...shadows.light,
+    ...shadows.medium,
   },
 });

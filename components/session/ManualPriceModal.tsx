@@ -9,15 +9,32 @@ type ManualPriceModalProps = {
   onChange: (field: keyof ManualFormValues, value: string) => void;
   onClose: () => void;
   onSubmit: () => void;
+  title?: string;
+  confirmLabel?: string;
+  confirmAccessibilityLabel?: string;
 };
 
-export function ManualPriceModal({ visible, loading, values, onChange, onClose, onSubmit }: ManualPriceModalProps) {
+export function ManualPriceModal({
+  visible,
+  loading,
+  values,
+  onChange,
+  onClose,
+  onSubmit,
+  title,
+  confirmLabel,
+  confirmAccessibilityLabel,
+}: ManualPriceModalProps) {
+  const modalTitle = title ?? "Adicionar preço manual";
+  const confirmText = confirmLabel ?? "Adicionar";
+  const confirmA11y = confirmAccessibilityLabel ?? `Confirmar ${confirmText.toLowerCase()}`;
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <Pressable style={styles.overlay} onPress={onClose} disabled={loading} accessible={false} />
         <View style={styles.container}>
-          <Text style={styles.title}>Adicionar preço manual</Text>
+          <Text style={styles.title}>{modalTitle}</Text>
           <TextInput
             placeholder="Nome"
             style={styles.input}
@@ -51,7 +68,7 @@ export function ManualPriceModal({ visible, loading, values, onChange, onClose, 
               onPress={onClose}
               disabled={loading}
               accessibilityRole="button"
-              accessibilityLabel="Cancelar adição manual"
+              accessibilityLabel="Cancelar"
             >
               <Text style={styles.cancelText}>Cancelar</Text>
             </Pressable>
@@ -60,9 +77,9 @@ export function ManualPriceModal({ visible, loading, values, onChange, onClose, 
               onPress={onSubmit}
               disabled={loading}
               accessibilityRole="button"
-              accessibilityLabel="Confirmar adição manual"
+              accessibilityLabel={confirmA11y}
             >
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>Adicionar</Text>}
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>{confirmText}</Text>}
             </Pressable>
           </View>
         </View>

@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { CameraActions } from "../components/session/CameraActions";
 import { ManualPriceModal } from "../components/session/ManualPriceModal";
 import { PriceList } from "../components/session/PriceList";
@@ -11,10 +11,12 @@ import { SessionSummary } from "../components/session/SessionSummary";
 import { useSession } from "../context/SessionContext";
 import { useSessionPolling } from "../hooks/useSessionPolling";
 import type { Price } from "../lib/api";
-import { createPrice, deletePrice, getPricePhoto } from "../lib/api";
+import { createPrice, deletePrice, getPricePhoto, updatePrice } from "../lib/api";
 import { colors, radii, spacing, typography } from "../styles/theme";
 import { manualInitialState, type ManualFormValues } from "../types/manualPrice";
 import { parseCurrency, parseQuantity } from "../utils/parsing";
+
+const ACTION_BUTTON_SIZE = 56;
 
 export default function Index() {
   const navigation = useNavigation<any>();
@@ -25,11 +27,14 @@ export default function Index() {
   const [manualVisible, setManualVisible] = useState(false);
   const [manualLoading, setManualLoading] = useState(false);
   const [manualForm, setManualForm] = useState<ManualFormValues>(manualInitialState);
+  const [manualMode, setManualMode] = useState<"create" | "edit">("create");
+  const [editingPrice, setEditingPrice] = useState<Price | null>(null);
   const [selectedPrice, setSelectedPrice] = useState<Price | null>(null);
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     void ensureSession();
@@ -58,13 +63,19 @@ export default function Index() {
   const closeManualModal = useCallback((force = false) => {
     if (manualLoading && !force) return;
     setManualVisible(false);
+    setManualMode("create");
+    setEditingPrice(null);
     resetManualForm();
-  }, [manualLoading, resetManualForm]);
+  }, [manualLoading, resetManualForm, setManualMode, setEditingPrice, setManualVisible]);
 
   const openManualModal = useCallback(() => {
     if (!sessionId) return;
+    clearError();
+    setManualMode("create");
+    setEditingPrice(null);
+    resetManualForm();
     setManualVisible(true);
-  }, [sessionId]);
+  }, [sessionId, clearError, resetManualForm, setManualMode, setEditingPrice, setManualVisible]);
 
   const handleCapture = useCallback(async () => {
     if (!sessionId) return;
@@ -94,17 +105,27 @@ export default function Index() {
         return;
       }
 
+      if (manualMode === "edit" && !editingPrice) {
+        Alert.alert("Não foi possível editar", "Selecione o item novamente e tente outra vez.");
+        return;
+      }
+
       clearError();
       setManualLoading(true);
-      const updated = await createPrice({ sessionId, quantity, name, value });
+
+      const updated =
+        manualMode === "edit" && editingPrice
+          ? await updatePrice({ sessionId, priceId: editingPrice.id, quantity, name, value })
+          : await createPrice({ sessionId, quantity, name, value });
       setData(updated);
       closeManualModal(true);
     } catch (error: any) {
-      Alert.alert("Erro ao adicionar preço", error?.message ?? "Tente novamente.");
+      const title = manualMode === "edit" ? "Erro ao salvar preço" : "Erro ao adicionar preço";
+      Alert.alert(title, error?.message ?? "Tente novamente.");
     } finally {
       setManualLoading(false);
     }
-  }, [sessionId, manualLoading, manualForm, setData, closeManualModal, clearError]);
+  }, [sessionId, manualLoading, manualForm, manualMode, editingPrice, setData, closeManualModal, clearError]);
 
   const handleDeletePrice = useCallback(async (price: Price) => {
     if (!sessionId) return;
@@ -141,6 +162,23 @@ export default function Index() {
   const previousUploadingRef = useRef(uploading);
   const photoRequestIdRef = useRef(0);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const actionPositioning = useMemo(() => {
+    const right = Math.max(insets.right, spacing.lg);
+    const baseBottom = spacing.lg + insets.bottom;
+    const needsExtraSpace = Platform.OS === "android" && insets.bottom < spacing.sm;
+    const cameraBottom = baseBottom + (needsExtraSpace ? spacing.lg : 0);
+  const manualBottom = cameraBottom + ACTION_BUTTON_SIZE + spacing.sm;
+  const listPaddingBottom = manualBottom + ACTION_BUTTON_SIZE + spacing.md;
+    return { right, cameraBottom, manualBottom, listPaddingBottom };
+  }, [insets.bottom, insets.right]);
+
+  const contentPaddingTop = useMemo(() => {
+    if (insets.top > 0) {
+      return Math.max(insets.top * 0.4, spacing.md);
+    }
+    return spacing.lg;
+  }, [insets.top]);
 
   const showToast = useCallback((message: string) => {
     if (toastTimeoutRef.current) {
@@ -196,6 +234,22 @@ export default function Index() {
     }
   }, [sessionId, showToast]);
 
+  const handleOpenEditPrice = useCallback(
+    (price: Price) => {
+      if (!sessionId) return;
+      clearError();
+      setManualMode("edit");
+      setEditingPrice(price);
+      setManualForm({
+        name: price.name ?? "",
+        quantity: String(price.quantity ?? 1),
+        value: price.value != null ? String(price.value).replace(".", ",") : "",
+      });
+      setManualVisible(true);
+    },
+    [sessionId, clearError, setManualMode, setEditingPrice, setManualForm, setManualVisible]
+  );
+
   const toastItems = useMemo(() => {
     const items: { key: string; text: string }[] = [];
     if (uploading) {
@@ -223,7 +277,7 @@ export default function Index() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       {combinedError ? (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{combinedError}</Text>
@@ -236,14 +290,16 @@ export default function Index() {
           <Text style={styles.loadingText}>Carregando dados...</Text>
         </View>
       ) : (
-        <View style={styles.content}>
+  <View style={[styles.content, { paddingTop: contentPaddingTop }]}>
           <SessionSummary total={total} />
           <PriceList
             prices={prices}
             disabled={listDisabled}
             onDelete={handleDeletePrice}
             onSelect={handleOpenPricePhoto}
+            onEdit={handleOpenEditPrice}
             loadingPriceId={photoLoading && selectedPrice ? selectedPrice.id : null}
+            contentBottomPadding={actionPositioning.listPaddingBottom}
           />
         </View>
       )}
@@ -254,6 +310,7 @@ export default function Index() {
         manualVisible={manualVisible}
         onCapture={handleCapture}
         onOpenManual={openManualModal}
+        positioning={actionPositioning}
       />
 
       <ManualPriceModal
@@ -263,6 +320,9 @@ export default function Index() {
         onChange={setManualField}
         onClose={closeManualModal}
         onSubmit={handleManualSubmit}
+        title={manualMode === "edit" ? "Editar preço" : undefined}
+        confirmLabel={manualMode === "edit" ? "Salvar" : undefined}
+        confirmAccessibilityLabel={manualMode === "edit" ? "Salvar alterações do preço" : undefined}
       />
 
       <PricePhotoModal
@@ -274,7 +334,10 @@ export default function Index() {
       />
 
       {toastItems.length ? (
-        <View pointerEvents="none" style={styles.toastContainer}>
+        <View
+          pointerEvents="none"
+          style={[styles.toastContainer, { bottom: actionPositioning.cameraBottom + spacing.sm }]}
+        >
           {toastItems.map((item) => (
             <View key={item.key} style={styles.toast}>
               <Text style={styles.toastText}>{item.text}</Text>

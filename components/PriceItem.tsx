@@ -12,12 +12,14 @@ type Props = {
   item: Price;
   onDelete?: (item: Price) => void;
   onPress?: (item: Price) => void;
+  onLongPress?: (item: Price) => void;
   disabled?: boolean;
   loading?: boolean;
 };
 
-export function PriceItem({ item, onDelete, onPress, disabled, loading }: Props) {
+export function PriceItem({ item, onDelete, onPress, onLongPress, disabled, loading }: Props) {
   const swipeRef = useRef<any>(null);
+  const longPressTriggeredRef = useRef(false);
 
   if (item.status === "PENDING") {
     return (
@@ -52,8 +54,31 @@ export function PriceItem({ item, onDelete, onPress, disabled, loading }: Props)
     <Swipeable ref={swipeRef} overshootRight={false} renderRightActions={renderRightActions} enabled={!disabled}>
       <Pressable
         style={styles.pressable}
-        onPress={() => onPress?.(item)}
-        disabled={disabled || !onPress}
+        onPress={
+          onPress
+            ? () => {
+                if (longPressTriggeredRef.current) {
+                  longPressTriggeredRef.current = false;
+                  return;
+                }
+                onPress(item);
+              }
+            : undefined
+        }
+        onLongPress={
+          onLongPress
+            ? () => {
+                longPressTriggeredRef.current = true;
+                onLongPress(item);
+              }
+            : undefined
+        }
+        onPressOut={() => {
+          if (longPressTriggeredRef.current) {
+            longPressTriggeredRef.current = false;
+          }
+        }}
+        disabled={disabled}
         accessibilityRole={onPress ? "button" : undefined}
         accessibilityLabel={onPress ? "Visualizar foto do preço" : undefined}
       >

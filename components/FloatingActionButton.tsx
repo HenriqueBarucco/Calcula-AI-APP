@@ -1,29 +1,32 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import type { GestureResponderHandlers } from "react-native";
 import { ActivityIndicator, StyleSheet, TouchableOpacity } from "react-native";
 import { colors, radii, shadows, spacing } from "../styles/theme";
 
+const BUTTON_SIZE = 56;
+
 type Props = {
   onPress?: () => void | Promise<void>;
-  onLongPress?: () => void;
   disabled?: boolean;
   loading?: boolean;
-  panHandlers?: GestureResponderHandlers;
+  bottom?: number;
+  right?: number;
 };
 
-export function FloatingActionButton({ onPress, onLongPress, disabled, loading, panHandlers }: Props) {
+export function FloatingActionButton({ onPress, disabled, loading, bottom, right }: Props) {
   return (
     <TouchableOpacity
       accessibilityLabel="Ação principal"
       activeOpacity={0.85}
       onPress={onPress}
-      onLongPress={onLongPress}
       disabled={disabled || loading}
-      {...(panHandlers ?? {})}
       style={[
         styles.container,
-        { backgroundColor: disabled || loading ? colors.primaryMuted : colors.primary },
+        {
+          backgroundColor: disabled || loading ? colors.primaryMuted : colors.primary,
+          bottom: bottom ?? spacing.lg,
+          right: right ?? spacing.lg,
+        },
       ]}
     >
       {loading ? <ActivityIndicator color={colors.textInverse} /> : <Ionicons name="camera" size={24} color={colors.textInverse} />}
@@ -34,10 +37,8 @@ export function FloatingActionButton({ onPress, onLongPress, disabled, loading, 
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    right: spacing.lg,
-    bottom: spacing.lg,
-    width: 56,
-    height: 56,
+    width: BUTTON_SIZE,
+    height: BUTTON_SIZE,
     borderRadius: radii.full,
     alignItems: "center",
     justifyContent: "center",

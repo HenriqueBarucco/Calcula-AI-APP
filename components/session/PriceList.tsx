@@ -9,10 +9,12 @@ type PriceListProps = {
   disabled: boolean;
   onDelete: (price: Price) => Promise<void> | void;
   onSelect?: (price: Price) => void;
+  onEdit?: (price: Price) => void;
   loadingPriceId?: string | null;
+  contentBottomPadding?: number;
 };
 
-function PriceListComponent({ prices, disabled, onDelete, onSelect, loadingPriceId }: PriceListProps) {
+function PriceListComponent({ prices, disabled, onDelete, onSelect, onEdit, loadingPriceId, contentBottomPadding }: PriceListProps) {
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<Price>) => (
       <PriceItem
@@ -20,10 +22,11 @@ function PriceListComponent({ prices, disabled, onDelete, onSelect, loadingPrice
         disabled={disabled}
         onDelete={() => onDelete(item)}
         onPress={onSelect}
+        onLongPress={onEdit}
         loading={loadingPriceId === item.id}
       />
     ),
-    [disabled, onDelete, onSelect, loadingPriceId]
+    [disabled, onDelete, onSelect, onEdit, loadingPriceId]
   );
 
   const keyExtractor = useCallback((item: Price) => item.id, []);
@@ -33,7 +36,10 @@ function PriceListComponent({ prices, disabled, onDelete, onSelect, loadingPrice
       data={prices}
       keyExtractor={keyExtractor}
       renderItem={renderItem}
-      contentContainerStyle={styles.listContent}
+      contentContainerStyle={[
+        styles.listContent,
+        contentBottomPadding ? { paddingBottom: contentBottomPadding } : null,
+      ]}
       ListEmptyComponent={
         <View style={styles.emptyState}>
           <Text>Sem preços no momento.</Text>

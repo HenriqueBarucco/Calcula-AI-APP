@@ -112,6 +112,33 @@ export async function createPrice(params: {
   return await getSession(sessionId);
 }
 
+export async function updatePrice(params: {
+  sessionId: string;
+  priceId: string;
+  quantity: number;
+  name: string;
+  value: number;
+}): Promise<SessionDetails> {
+  const { sessionId, priceId, quantity, name, value } = params;
+  const res = await fetch(`${API_URL}/sessions/prices/${priceId}`, {
+    method: "PATCH",
+    headers: {
+      session: sessionId,
+      "Content-Type": "application/json",
+    } as any,
+    body: JSON.stringify({ quantity, name, value }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Falha ao atualizar preço (${res.status}): ${text}`);
+  }
+
+  const parsed = await parseJsonSafe<SessionDetails>(res);
+  if (parsed) return parsed;
+  return await getSession(sessionId);
+}
+
 export async function deletePrice(params: { sessionId: string; priceId: string }): Promise<void> {
   const { sessionId, priceId } = params;
   const res = await fetch(`${API_URL}/sessions/prices/${priceId}`, {
